@@ -97,16 +97,19 @@ podman build -t member-registration .
 podman run -p 8085:8085 member-registration
 ```
 
-**With persistent data (recommended):**
+**With persistent data and email (recommended):**
 ```bash
 # Create a volume for the database
 podman volume create member-data
 
-# Run with persistent storage
+# Run with persistent storage and Mailgun email
 podman run -d \
   --name member-app \
   -p 8085:8085 \
   -v member-data:/app/data \
+  -e MAILGUN_DOMAIN=your-domain.mailgun.org \
+  -e MAILGUN_API_KEY=key-your-api-key \
+  -e FROM_EMAIL=noreply@your-domain.com \
   member-registration
 ```
 
@@ -174,6 +177,38 @@ podman-compose up -d
 | `DATABASE_PATH` | `/app/data/members.db` | Database file location |
 | `HOST` | `0.0.0.0` | Host to bind to |
 | `SHOW_BROWSER` | `false` | Whether to open browser |
+| `MAILGUN_DOMAIN` | None | Your Mailgun domain (e.g., mg.yourdomain.com) |
+| `MAILGUN_API_KEY` | None | Your Mailgun API key (starts with "key-") |
+| `FROM_EMAIL` | `noreply@{domain}` | Email address to send from |
+
+### Email Configuration (Mailgun)
+
+The application sends confirmation emails using Mailgun. To enable email functionality:
+
+1. **Sign up for Mailgun** at https://mailgun.com
+2. **Get your domain and API key** from the Mailgun dashboard
+3. **Set environment variables** when running the container:
+
+```bash
+# Run with email configuration
+podman run -d \
+  --name member-app \
+  -p 8085:8085 \
+  -v member-data:/app/data \
+  -e MAILGUN_DOMAIN=mg.yourdomain.com \
+  -e MAILGUN_API_KEY=key-1234567890abcdef \
+  -e FROM_EMAIL=registration@yourdomain.com \
+  member-registration
+```
+
+**Email Features:**
+- ✅ **Welcome email** with registration details
+- ✅ **HTML and text** versions
+- ✅ **Professional styling** with gradients and branding
+- ✅ **Graceful fallback** - app works without email config
+- ✅ **Error handling** - registration succeeds even if email fails
+
+**Note**: If Mailgun is not configured, registrations will still work but no emails will be sent.
 
 ### Firewall Configuration
 

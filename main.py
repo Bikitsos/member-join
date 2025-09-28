@@ -2,10 +2,17 @@ from nicegui import ui
 import re
 import sqlite3
 import os
+import requests
 from datetime import datetime
 
 # Database path - can be overridden with environment variable
 DB_PATH = os.getenv('DATABASE_PATH', 'members.db')
+
+# Mailgun configuration - set these environment variables
+MAILGUN_DOMAIN = os.getenv('MAILGUN_DOMAIN')
+MAILGUN_API_KEY = os.getenv('MAILGUN_API_KEY')
+FROM_EMAIL = os.getenv('FROM_EMAIL', f'noreply@{MAILGUN_DOMAIN}' if MAILGUN_DOMAIN else 'noreply@example.com')
+MAILGUN_BASE_URL = f'https://api.mailgun.net/v3/{MAILGUN_DOMAIN}'
 
 
 def is_valid_email(email: str) -> bool:
@@ -141,6 +148,103 @@ def get_all_members():
         return []
 
 
+def send_confirmation_email(name: str, surname: str, email: str, mobile: str) -> bool:
+    """Send confirmation email using Mailgun API."""
+    
+    # Skip email sending if Mailgun is not configured
+    if not MAILGUN_DOMAIN or not MAILGUN_API_KEY:
+        print("Mailgun not configured - skipping email")
+        return True  # Return True to not block registration
+    
+    try:
+        # Email content
+        subject = "Welcome! Registration Confirmed"
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=true">
+            <title>Registration Confirmation</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px; color: white; text-align: center; margin-bottom: 30px;">
+                <h1 style="margin: 0; font-size: 28px;">🎉 Welcome to Our Community!</h1>
+                <p style="margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;">Registration Successful</p>
+            </div>
+            
+            <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="color: #333; margin-top: 0;">Hello {name} {surname}!</h2>
+                <p style="font-size: 16px;">Thank you for registering with us. Your membership has been confirmed successfully.</p>
+                
+                <div style="background: white; padding: 15px; border-radius: 5px; border-left: 4px solid #667eea; margin: 20px 0;">
+                    <h3 style="margin-top: 0; color: #667eea;">Your Registration Details:</h3>
+                    <p style="margin: 5px 0;"><strong>Name:</strong> {name} {surname}</p>
+                    <p style="margin: 5px 0;"><strong>Email:</strong> {email}</p>
+                    <p style="margin: 5px 0;"><strong>Mobile:</strong> {mobile}</p>
+                    <p style="margin: 5px 0;"><strong>Registration Date:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+                </div>
+                
+                <p style="color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">
+                    If you have any questions or need assistance, please don't hesitate to contact us.
+                </p>
+            </div>
+            
+            <div style="text-align: center; color: #888; font-size: 12px;">
+                <p>This is an automated confirmation email. Please do not reply to this message.</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        Welcome to Our Community!
+        
+        Hello {name} {surname}!
+        
+        Thank you for registering with us. Your membership has been confirmed successfully.
+        
+        Registration Details:
+        - Name: {name} {surname}
+        - Email: {email}
+        - Mobile: {mobile}
+        - Registration Date: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+        
+        If you have any questions or need assistance, please contact us.
+        
+        This is an automated confirmation email.
+        """
+        
+        # Mailgun API request
+        response = requests.post(
+            f"{MAILGUN_BASE_URL}/messages",
+            auth=("api", MAILGUN_API_KEY),
+            data={
+                "from": f"Member Registration <{FROM_EMAIL}>",
+                "to": [email],
+                "subject": subject,
+                "text": text_content,
+                "html": html_content
+            },
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            print(f"Confirmation email sent successfully to {email}")
+            return True
+        else:
+            print(f"Failed to send email to {email}. Status: {response.status_code}, Response: {response.text}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Email sending failed due to network error: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error sending email: {e}")
+        return False
+
+
 def submit_form(name_input, surname_input, mobile_input, email_input, status_label):
     """Handle form submission with validation."""
     # Get values
@@ -182,7 +286,14 @@ def submit_form(name_input, surname_input, mobile_input, email_input, status_lab
     else:
         # Save to database
         if save_member_to_db(name, surname, mobile, email):
-            status_label.text = f"✅ Welcome {name} {surname}! Registration successful."
+            # Send confirmation email
+            email_sent = send_confirmation_email(name, surname, email, mobile)
+            
+            if email_sent:
+                status_label.text = f"✅ Welcome {name} {surname}! Registration successful. Confirmation email sent."
+            else:
+                status_label.text = f"✅ Welcome {name} {surname}! Registration successful. (Email delivery failed)"
+            
             status_label.style('color: green')
             
             # Clear form

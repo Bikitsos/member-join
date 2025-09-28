@@ -27,5 +27,10 @@ ENV DATABASE_PATH=/app/data/members.db
 ENV HOST=0.0.0.0
 ENV SHOW_BROWSER=false
 
+# Mailgun configuration (to be set at runtime)
+# ENV MAILGUN_DOMAIN=your-domain.mailgun.org
+# ENV MAILGUN_API_KEY=your-api-key
+# ENV FROM_EMAIL=noreply@your-domain.com
+
 # Run the application
 CMD ["python", "main.py"]

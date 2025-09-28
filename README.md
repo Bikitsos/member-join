@@ -9,6 +9,7 @@ A modern web-based member registration form built with NiceGUI, Python 3.12, and
 - ✅ **Real-time Validation**: Instant feedback on form errors
 - ✅ **Duplicate Prevention**: Unique email and mobile number enforcement
 - ✅ **SQLite Database**: Persistent data storage with automatic timestamps
+- ✅ **Email Confirmation**: Mailgun integration for welcome emails
 - ✅ **Container Ready**: Podman/Docker deployment support
 - ✅ **Member Viewer**: Command-line tool to view registered members
 
@@ -21,15 +22,22 @@ A modern web-based member registration form built with NiceGUI, Python 3.12, and
    uv sync
    ```
 
-2. **Run the Application**:
+2. **Configure Email (Optional)**:
+   ```bash
+   cp .env.example .env.mailgun
+   # Edit .env.mailgun with your Mailgun credentials
+   source .env.mailgun
+   ```
+
+3. **Run the Application**:
    ```bash
    uv run main.py
    ```
 
-3. **Access the Form**:
+4. **Access the Form**:
    - Open http://localhost:8085 in your browser
 
-4. **View Registered Members**:
+5. **View Registered Members**:
    ```bash
    uv run view_members.py
    ```
@@ -126,6 +134,62 @@ member-join/
 | `DATABASE_PATH` | `members.db` | SQLite database file path |
 | `HOST` | `localhost` | Host to bind to (`0.0.0.0` for containers) |
 | `SHOW_BROWSER` | `true` | Auto-open browser on start |
+| `MAILGUN_DOMAIN` | None | Your Mailgun domain for email sending |
+| `MAILGUN_API_KEY` | None | Your Mailgun API key for authentication |
+| `FROM_EMAIL` | `noreply@{domain}` | Email address to send confirmations from |
+
+## 📧 Email Configuration
+
+The application sends welcome emails using **Mailgun** after successful registration.
+
+### Setup Mailgun
+
+1. **Create account** at [mailgun.com](https://mailgun.com)
+2. **Add your domain** or use sandbox domain for testing
+3. **Get API credentials** from Mailgun dashboard
+
+### Configure Environment
+
+**For Local Development:**
+```bash
+# Copy example file
+cp .env.example .env.mailgun
+
+# Edit with your credentials
+MAILGUN_DOMAIN=mg.yourdomain.com
+MAILGUN_API_KEY=key-your-api-key-here
+FROM_EMAIL=welcome@yourdomain.com
+
+# Load environment and run
+source .env.mailgun
+uv run main.py
+```
+
+**For Container Deployment:**
+```bash
+podman run -d \
+  --name member-app \
+  -p 8085:8085 \
+  -v member-data:/app/data \
+  -e MAILGUN_DOMAIN=mg.yourdomain.com \
+  -e MAILGUN_API_KEY=key-your-api-key \
+  -e FROM_EMAIL=welcome@yourdomain.com \
+  member-registration
+```
+
+### Email Features
+
+✅ **Professional HTML emails** with styling and branding  
+✅ **Plain text fallback** for all email clients  
+✅ **Registration details** included in confirmation  
+✅ **Graceful fallback** - works without email configuration  
+✅ **Error handling** - registration succeeds even if email fails  
+
+**Sample Email Content:**
+- Welcome message with member's name
+- Registration details (name, email, mobile, date)
+- Professional styling with gradients
+- Responsive HTML design
 
 ### Container Management
 

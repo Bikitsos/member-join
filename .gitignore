@@ -79,6 +79,10 @@ members.db
 .env.local
 .env.*.local
 
+# Mailgun and email configuration
+.env.mailgun
+.env.email
+
 # OS generated files
 .DS_Store
 .DS_Store?
